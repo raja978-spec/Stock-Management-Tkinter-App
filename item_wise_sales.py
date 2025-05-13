@@ -5,7 +5,6 @@ import os
 
 def generate_item_wise_sales():
         plt.cla()
-        # SALES BY MONTH
         x=[]
         y=[]
         
