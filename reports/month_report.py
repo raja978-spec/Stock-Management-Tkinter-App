@@ -11,7 +11,7 @@ def generate_monthly_sales_report():
         
         result = run_query(f"SELECT month(sales_date), COUNT(memo_id) FROM sales WHERE year(sales_date) = '2025'  GROUP BY month(sales_date) LIMIT 100") 
         for i in result:
-            x.append(i[0])
+            x.append(str(i[0]))
             y.append(i[1])
         
         for i in range(len(x)):

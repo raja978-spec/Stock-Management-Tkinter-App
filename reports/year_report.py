@@ -14,7 +14,7 @@ def generate_year_sales_report():
     plt.title('Sales By Year')
     plt.xlabel('Year')
     plt.ylabel('Sales')
-    plt.bar(x=x, height=y, color=background_color)
+    plt.bar(x,y,color=background_color)
     for i in range(len(x)):
         plt.text(x[i], y[i], str(y[i]), ha='center', va='bottom')
     plt.savefig('year_sales.jpg')

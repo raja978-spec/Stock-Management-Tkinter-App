@@ -9,7 +9,7 @@ try:
 except:
     print('>>>>>>>>>>>',sys.exc_info()[0],'>>>>>>>>>>>')
 
-def run_query(query='select * from users',data_to_insert=None, update_to_db=False, reterival_id=None,
+def run_query(query='select * from users',data_to_insert:tuple=None, update_to_db=False, reterival_id=None,
               reterver_table_name='users'):
     table = con.cursor()
     result_set = None

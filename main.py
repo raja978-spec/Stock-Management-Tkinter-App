@@ -13,6 +13,7 @@ from weekly_sales_report import generate_weekly_sales_report
 #2025-04-10
 
 stock_data = []
+
 def get_updated_stock():
     stock_data.clear()  # Clear existing data to avoid duplicates
     result = run_query('select * from stock')
@@ -214,64 +215,26 @@ def stock_app(logged_in_user):
     notebook.add(memo_tab, text='Memo')
 
     memo_frame = tk.LabelFrame(memo_tab, text="Generate Cash Memo", font=('Helvetica', 14, 'bold'),
-                               bg='white', padx=20, pady=20)
+                           bg='white', padx=5, pady=5)
     memo_frame.pack(pady=20, padx=20, fill='x')
 
-    tk.Label(memo_frame, text="Select Item:", bg='white', font=('Helvetica', 11)).grid(row=0, column=0, padx=(5, 2), pady=5, sticky='e')
+    tk.Label(memo_frame, text="Select Item:", bg='white', font=('Helvetica', 11)
+             ).grid(row=0, column=0, sticky='w', padx=(5, 2), pady=5)
+
     selected_item = tk.StringVar()
     item_dropdown = ttk.Combobox(memo_frame, textvariable=selected_item, font=('Helvetica', 11),
-                                 width=20, state='readonly')
-    item_dropdown.grid(row=0, column=1, padx=(2, 10), pady=5, sticky='w')
+                             width=20, state='readonly')
+    item_dropdown.grid(row=0, column=1, sticky='w', padx=(2, 5), pady=5)
 
-    tk.Label(memo_frame, text="Quantity:", bg='white', font=('Helvetica', 11)).grid(row=0, column=2, padx=(5, 2), pady=5, sticky='e')
+    tk.Label(memo_frame, text="Quantity:", bg='white', font=('Helvetica', 11)
+    ).grid(row=0, column=2, sticky='w', padx=(5, 2), pady=5)
+
     quantity_input = ttk.Entry(memo_frame, font=('Helvetica', 11), width=10)
-    quantity_input.grid(row=0, column=3, padx=(2, 10), pady=5, sticky='w')
+    quantity_input.grid(row=0, column=3, sticky='w', padx=(2, 5), pady=5)
 
-    # Date Range Selection Frame
-    date_filter_frame = tk.LabelFrame(memo_tab, text="Sales History (Filter by Date)", font=('Helvetica', 12, 'bold'),
-                                     bg='white', padx=10, pady=10)
-    date_filter_frame.pack(padx=20, pady=10, fill='x')
+    purchase_items = []
 
-    tk.Label(date_filter_frame, text="From Date (YYYY-MM-DD):", bg='white', font=('Helvetica', 10)).grid(row=0, column=0)
-    from_date = ttk.Entry(date_filter_frame, width=15)
-    from_date.insert(0, date.today().strftime('%Y-%m-%d'))
-    from_date.grid(row=0, column=1, padx=5)
-
-    tk.Label(date_filter_frame, text="To Date (YYYY-MM-DD):", bg='white', font=('Helvetica', 10)).grid(row=0, column=2)
-    to_date = ttk.Entry(date_filter_frame, width=15)
-    to_date.insert(0, date.today().strftime('%Y-%m-%d'))
-    to_date.grid(row=0, column=3, padx=5)
-
-    memo_tree = ttk.Treeview(memo_tab, columns=("Memo ID", "Item", "Price", "Qty", "Total", "Date"), show='headings')
-    for col in ("Memo ID", "Item", "Price", "Qty", "Total", "Date"):
-        memo_tree.heading(col, text=col)
-        memo_tree.column(col, width=100, anchor='center')
-    memo_tree.pack(padx=20, pady=10, fill='both', expand=True)
-
-    def filter_sales():
-        try:
-            from_dt = datetime.strptime(from_date.get(), '%Y-%m-%d')
-            to_dt = datetime.strptime(to_date.get(), '%Y-%m-%d')
-            query = f"""
-            SELECT memo_id, item_name, price, quantity, total_amount, sales_date 
-            FROM Sales 
-            WHERE DATE(sales_date) BETWEEN '{from_dt.date()}' AND '{to_dt.date()}'
-            """
-            sales = run_query(query=query)
-            memo_tree.delete(*memo_tree.get_children())
-            for sale in sales:
-                memo_tree.insert('', 'end', values=sale)
-        except Exception as e:
-            messagebox.showerror("Error", f"Invalid date or database issue:\n{e}")
-
-
-
-    tk.Button(date_filter_frame, text="Show Sales", command=filter_sales,
-          bg=background_color, activebackground='white',
-          activeforeground='yellow').grid(row=0, column=4, padx=10)
-
-    
-    def generate_memo():
+    def add_to_purchase_list():
         item_name = selected_item.get()
         qty_str = quantity_input.get()
 
@@ -280,48 +243,133 @@ def stock_app(logged_in_user):
             return
 
         qty = int(qty_str)
-
+        index = 0
         for item in stock_data:
             if item[1] == item_name:
                 if qty > item[2]:
                     messagebox.showerror("Stock Error", "Not enough stock available.")
                     return
                 total = qty * item[3]
-                updated_quantity = item[2] - qty
-                insert='Insert Into Sales(memo_id, item_name, price, quantity, total_amount) Values(%s, %s, %s, %s, %s)'
-                memo_id = int(str(uuid.uuid4().int)[:5])
-                run_query(insert, (memo_id,item_name, item[3],qty,total))
-                update = f'Update stock Set quantity={updated_quantity} where item_name="{item_name}"'
-                run_query(query=update,update_to_db=True)
-                get_updated_stock()
-                memo_display.delete(1.0, tk.END)
-                memo_display.insert(tk.END, f"========== CASH MEMO {memo_id}==========\n")
-                memo_display.insert(tk.END, f"Item           : {item_name}\n")
-                memo_display.insert(tk.END, f"Quantity       : {qty}\n")
-                memo_display.insert(tk.END, f"Price per item : ₹{item[3]:.2f}\n")
-                memo_display.insert(tk.END, f"-------------------------------\n")
-                memo_display.insert(tk.END, f"TOTAL          : ₹{total:.2f}\n")
-                memo_display.insert(tk.END, f"===============================\n")
-                generate_year_sales_report()
-                generate_monthly_sales_report()
-                generate_weekly_sales_report()
+                purchase_items.append([index,item_name, item[3], qty, total])
+                index+=1
+                refresh_purchase_table()
                 return
 
+    def refresh_purchase_table():
+        memo_tree.delete(*memo_tree.get_children())
+        for idx, (_, item, price, qty, total) in enumerate(purchase_items, start=1):
+            memo_tree.insert('', 'end', values=(idx, item, f"₹{price:.2f}", qty, f"₹{total:.2f}",'✏', '🗑'))
+    
+    def generate_memo():
+        if not purchase_items:
+            messagebox.showwarning("No Items", "Add at least one item to generate memo.")
+            return
+        memo_id = int(str(uuid.uuid4().int)[:5])
+        total_amount = sum(item[4] for item in purchase_items)
+        memo_text = f"========== CASH MEMO {memo_id} ==========\n"
+        for _,item, price, qty, total in purchase_items:
+            insert_query="Insert into sales(memo_id,item_name,price,quantity,total_amount) values(%s, %s, %s, %s, %s)"
+            run_query(insert_query, data_to_insert=(memo_id,item,price,qty,total))
+            run_query(f'update stock set quantity=quantity-{qty} where item_name="{item}"',
+                      update_to_db=True)
+            print(item,qty,price,total)
+            memo_text += f"{item:15} x {qty:<3} @ ₹{price:<7.2f} = ₹{total:.2f}\n"
+        memo_text += "----------------------------------------\n"
+        memo_text += f"TOTAL BILL: ₹{total_amount:.2f}\n"
+        memo_text += "========================================\n"
+
+        messagebox.showinfo("Memo Generated", memo_text)
+       
+        purchase_items.clear()
+        memo_edit_frame.pack_forget()
+        refresh_purchase_table()
+
+    tk.Button(memo_frame, text="Add items to purchase list",
+          bg=background_color,
+          activebackground='white',
+          activeforeground='yellow',
+          command=add_to_purchase_list).grid(row=0, column=4, padx=(10, 5), pady=5)
+
     tk.Button(memo_frame, text="Generate Memo",
-              bg=background_color,
-              activebackground='white',
-              activeforeground='yellow',
-              command=generate_memo).grid(row=0, column=4, padx=(5, 0), pady=5, sticky='w')
+          bg=background_color,
+          activebackground='white',
+          activeforeground='yellow',
+          command=generate_memo).grid(row=0, column=5, padx=(5, 10), pady=5)
 
-    memo_display = tk.Text(memo_frame, height=10, width=100, font=('Courier New', 11),
-                           bg="#f2f2f2", relief=tk.SOLID)
-    memo_display.grid(row=1, column=0, columnspan=5, pady=10, padx=5)
-
+    # Purchase Items Table
+    memo_tree = ttk.Treeview(memo_tab, columns=("S.No", "Item", "Price", "Qty", "Total",'Edit','Delete'), show='headings')
+    for col in ("S.No", "Item", "Price", "Qty", "Total",'Edit','Delete'):
+        memo_tree.heading(col, text=col)
+        memo_tree.column(col, width=100 if col not in ["Edit", "Delete"] else 60, anchor='center')
+    memo_tree.pack(padx=20, pady=20, fill='x')
 
     def update_item_dropdown():
         item_dropdown['values'] = [item[1] for item in stock_data]
+    
+    memo_edit_frame = tk.LabelFrame(memo_tab, text="Edit Purchase Items", font=('Helvetica', 14, 'bold'),
+                           bg='white', padx=5, pady=5)
+    item_index_want_updated_quantity = 0
+    def on_row_click(event):
+        region = memo_tree.identify("region", event.x, event.y)
+        if region != "cell":
+            return
 
-   
+        column = memo_tree.identify_column(event.x)
+        row_id = memo_tree.identify_row(event.y)
+
+        if not row_id:
+            return
+
+        values = memo_tree.item(row_id)['values']
+        item_code = values[0]
+
+        if column == "#6":  # Edit column
+            nonlocal item_index_want_updated_quantity 
+            item_index_want_updated_quantity = values[0]-1
+            if not edited_quantity.get().strip() == '':
+                edited_quantity.delete(0,tk.END)    
+            edited_quantity.insert(0,values[3])
+            memo_edit_frame.pack(padx=10, pady=10, fill='x')
+
+
+        elif column == "#7":  # Delete column
+            confirm = messagebox.askyesno("Confirm Delete", f"Delete item '{values[1]}'?")
+            if confirm:
+                purchase_items.pop(item_code-1)
+                refresh_purchase_table()
+
+    print(purchase_items)
+    memo_tree.bind("<Button-1>", on_row_click) 
+
+    tk.Label(memo_edit_frame, text="Quantity:", bg='white', font=('Helvetica', 11)
+    ).grid(row=0, column=0)
+
+    edited_quantity = ttk.Entry(memo_edit_frame, font=('Helvetica', 11), width=10)
+    edited_quantity.grid(row=0, column=1, sticky='w', padx=(2, 5), pady=5)
+
+    def change_quantity():
+        e_quan = edited_quantity.get()
+        purchase_items[item_index_want_updated_quantity][3] = int(e_quan)
+        purchase_items[item_index_want_updated_quantity][4] = purchase_items[item_index_want_updated_quantity][2] * int(e_quan)
+        print(item_index_want_updated_quantity)
+        print(purchase_items[item_index_want_updated_quantity])
+        refresh_purchase_table()
+        memo_edit_frame.place_forget()
+    
+    def cancel_quantity_edit():
+        memo_edit_frame.pack_forget()
+        edited_quantity.delete(0, tk.END)
+        
+    tk.Button(memo_edit_frame, text="Change quantity",
+          bg=background_color,
+          activebackground='white',
+          activeforeground='yellow',
+          command=change_quantity).grid(row=0, column=4, padx=(10, 5), pady=5)
+    tk.Button(memo_edit_frame, text="Cancel change",
+          bg=background_color,
+          activebackground='white',
+          activeforeground='yellow',
+          command=cancel_quantity_edit).grid(row=0, column=5, padx=(10, 5), pady=5)
     # ======== Report Tab ========
     report_tab = tk.Frame(notebook, bg='#e6f2ff')
     notebook.add(report_tab, text='Report')
@@ -454,3 +502,4 @@ def stock_app(logged_in_user):
     notebook.bind("<<NotebookTabChanged>>", on_tab_change)
     root.mainloop()
 #stock_app((1,'user','pass','pass'))
+#SELECT memo_id, COUNT(memo_id) FROM sales GROUP BY memo_id ORDER By COUNT(memo_id) DESC
