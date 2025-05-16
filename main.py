@@ -502,4 +502,3 @@ def stock_app(logged_in_user):
     notebook.bind("<<NotebookTabChanged>>", on_tab_change)
     root.mainloop()
 #stock_app((1,'user','pass','pass'))
-#SELECT memo_id, COUNT(memo_id) FROM sales GROUP BY memo_id ORDER By COUNT(memo_id) DESC
